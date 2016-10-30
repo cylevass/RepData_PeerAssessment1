@@ -1,25 +1,133 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Course Project 1"
+author: "cylevass"
+date: "29 octobre 2016"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, echo=FALSE, message=FALSE}
+library(ggplot2)
+library(scales)
+library(dplyr)
+```
 
 ## Loading and preprocessing the data
+```{r}
+my_data <- read.csv("activity.csv")
+my_data$hour <- substr(sprintf("%04d",my_data$interval),1,2)
+my_data$minute <- substr(sprintf("%04d",my_data$interval),3,4)
+my_data$mytime <- as.POSIXct(paste(my_data$date,my_data$hour,my_data$minute,sep="-"),"%Y-%m-%d-%H-%M",tz="")
+head(my_data)
+```
+
+## Total number of steps taken per day
+```{r}
+g <- ggplot(data=my_data, aes(my_data$mytime, weight = my_data$steps)) +
+    geom_histogram(bins=61, fill="blue", col="white", alpha=0.7) +
+    scale_x_datetime(breaks = date_breaks("1 week"), date_labels = "%Y-%m-%d") +
+    xlab("Date") +
+    ylab("Steps per day") +
+    ggtitle("Total of steps per day") +
+    theme(axis.text.x = element_text(size=8, angle=45, hjust=1))
+g
+tot_per_day <- tapply(X = my_data$steps, INDEX = my_data$date, FUN = sum)
+```
+
+Mean number of steps per day :
+```{r}
+mean(tot_per_day, na.rm=TRUE)
+```
+Median number of steps per day :
+```{r}
+median(tot_per_day, na.rm=TRUE)
+```
+
+## Average daily activity pattern
+```{r}
+mean_per_interval <- tapply(X = my_data$steps, INDEX = paste(my_data$hour,my_data$minute,sep=':'), FUN = mean, na.rm=TRUE)
+plot(mean_per_interval,
+     xaxt = "n",
+     type = "l",
+     main = "Mean number of steps per 5-minutes",
+     xlab = "5-minutes interval",
+     ylab = "Mean number of steps")
+axis(1, at=1:length(mean_per_interval), labels=names(mean_per_interval))
+```
+
+Maximum number of steps on average :
+```{r}
+names(which.max(mean_per_interval))
+max(mean_per_interval)
+```
 
 
+## Missing values
 
-## What is mean total number of steps taken per day?
+Number of missing values :
+```{r}
+sum(is.na(my_data$steps))
+```
 
+Filling the missing values with the average of steps for the intervals that miss :
+```{r}
+my_data_2 <- my_data
+my_data_2 %>%
+ group_by(interval) %>%
+ mutate(steps = (ifelse(is.na(steps), as.numeric(mean(steps, na.rm = TRUE)), steps))) -> my_data_2
+head(my_data_2)
+```
 
+New plot :
+```{r}
+g <- ggplot(data=my_data_2, aes(my_data_2$mytime, weight = my_data_2$steps)) +
+    geom_histogram(bins=61, fill="blue", col="white", alpha=0.7) +
+    scale_x_datetime(breaks = date_breaks("1 week"), date_labels = "%Y-%m-%d") +
+    xlab("Date") +
+    ylab("Steps per day") +
+    ggtitle("Total of steps per day") +
+    theme(axis.text.x = element_text(size=8, angle=45, hjust=1))
+g
+tot_per_day <- tapply(X = my_data_2$steps, INDEX = my_data_2$date, FUN = sum)
+```
 
-## What is the average daily activity pattern?
+Mean number of steps per day :
+```{r}
+mean(tot_per_day, na.rm=TRUE)
+```
+Median number of steps per day :
+```{r}
+median(tot_per_day, na.rm=TRUE)
+```
 
+==> impact of the missing values is neglectable in this case.
 
+## Differences in activity patterns between weekdays and weekends
 
-## Imputing missing values
+```{r}
+my_data_3 <- my_data
+my_data_3$day_type <- weekdays(as.Date(my_data_3$date))
+my_data_3$day_type[my_data_3$day_type=="lundi"] <- "weekday"
+my_data_3$day_type[my_data_3$day_type=="mardi"] <- "weekday"
+my_data_3$day_type[my_data_3$day_type=="mercredi"] <- "weekday"
+my_data_3$day_type[my_data_3$day_type=="jeudi"] <- "weekday"
+my_data_3$day_type[my_data_3$day_type=="vendredi"] <- "weekday"
+my_data_3$day_type[my_data_3$day_type=="samedi"] <- "weekend"
+my_data_3$day_type[my_data_3$day_type=="dimanche"] <- "weekend"
+my_data_3$day_type <- factor(my_data_3$day_type)
 
+mean_per_interval_day <- tapply(X = my_data_3$steps, INDEX = paste(my_data_3$day_type,my_data$hour,my_data$minute,sep=':'), FUN = mean, na.rm=TRUE)
 
+plot(mean_per_interval_day,
+     xaxt = "n",
+     type = "l",
+     main = "Mean number of steps per 5-minutes",
+     xlab = "5-minutes interval",
+     ylab = "Mean number of steps")
+axis(1, at=1:length(mean_per_interval_day), labels=names(mean_per_interval_day))
 
-## Are there differences in activity patterns between weekdays and weekends?
+```
+
